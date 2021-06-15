@@ -10,7 +10,7 @@ dependencies:
   - certifi=2019.11.28
   - cffi=1.11.5
   - cloudpickle=0.5.3
-  - cudatoolkit=10.1.243
+  - cpuonly
   - cycler=0.10.0
   - dask-core=0.18.2
   - dbus=1.13.6

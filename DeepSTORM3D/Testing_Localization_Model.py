@@ -5,6 +5,7 @@ import csv
 import pickle
 import numpy as np
 import matplotlib
+
 matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 import glob
@@ -22,7 +23,6 @@ from DeepSTORM3D.helper_utils import normalize_01, xyz_to_nm
 
 
 def test_model(path_results, postprocess_params, exp_imgs_path=None, seed=66):
-
     # close all existing plots
     plt.close("all")
 
@@ -32,6 +32,7 @@ def test_model(path_results, postprocess_params, exp_imgs_path=None, seed=66):
         setup_params = pickle.load(handle)
 
     # run on GPU if available
+    setup_params['device'] = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     device = setup_params['device']
     torch.backends.cudnn.benchmark = True
 
@@ -42,7 +43,7 @@ def test_model(path_results, postprocess_params, exp_imgs_path=None, seed=66):
     mask_param = torch.from_numpy(setup_params['mask_init']).to(device)
 
     # plot used mask and PSF
-    plt.figure(figsize=(10,5))
+    plt.figure(figsize=(10, 5))
     ShowMaskPSF(mask_param, vis_term, zvis)
 
     # load learning results
@@ -59,7 +60,8 @@ def test_model(path_results, postprocess_params, exp_imgs_path=None, seed=66):
     cnn.to(device)
 
     # load learned weights
-    cnn.load_state_dict(torch.load(path_results + 'weights_best_loss.pkl'))
+    cnn.load_state_dict(torch.load(path_results + 'weights_best_loss.pkl',
+                                   map_location=device))
 
     # post-processing module on CPU/GPU
     thresh, radius = postprocess_params['thresh'], postprocess_params['radius']
@@ -101,8 +103,8 @@ def test_model(path_results, postprocess_params, exp_imgs_path=None, seed=66):
 
         # alter the mean and std to match the training set
         if setup_params['project_01'] is True:
-            test_input_im = (test_input_im - test_input_im.mean())/test_input_im.std()
-            test_input_im = test_input_im*setup_params['train_stats'][1] + setup_params['train_stats'][0]
+            test_input_im = (test_input_im - test_input_im.mean()) / test_input_im.std()
+            test_input_im = test_input_im * setup_params['train_stats'][1] + setup_params['train_stats'][0]
 
         # ==============================================================================================================
         # predict the positions by post-processing the net's output
@@ -147,7 +149,7 @@ def test_model(path_results, postprocess_params, exp_imgs_path=None, seed=66):
 
         # report quantitative metrics
         print('Jaccard Index = {:.2f}%, Lateral RMSE = {:.2f} nm, Axial RMSE = {:.2f}'.format(
-            jaccard_index*100, RMSE_xy*1e3, RMSE_z*1e3))
+            jaccard_index * 100, RMSE_xy * 1e3, RMSE_z * 1e3))
 
         # ==============================================================================================================
         # compare the network positions to the input image
@@ -321,8 +323,8 @@ def test_model(path_results, postprocess_params, exp_imgs_path=None, seed=66):
                         nemitters = 0
                     else:
                         nemitters = xyz_rec.shape[0]
-                        frm_rec = (im_ind + 1)*np.ones(nemitters)
-                        xyz_save = xyz_to_nm(xyz_rec, H*2, W*2, psize_rec_xy, zmin)
+                        frm_rec = (im_ind + 1) * np.ones(nemitters)
+                        xyz_save = xyz_to_nm(xyz_rec, H * 2, W * 2, psize_rec_xy, zmin)
                         results = np.vstack((results, np.column_stack((frm_rec, xyz_save, conf_rec))))
 
                     # if the number of imgs is small then plot each image in the loop with localizations
@@ -362,7 +364,6 @@ def test_model(path_results, postprocess_params, exp_imgs_path=None, seed=66):
 
 
 if __name__ == '__main__':
-
     # start a parser
     parser = argparse.ArgumentParser()
 
