@@ -6,11 +6,50 @@ import numpy as np
 from DeepSTORM3D.physics_utils import EmittersToPhases
 from DeepSTORM3D.helper_utils import normalize_01
 from skimage.io import imread
-
+import math
 
 # ======================================================================================================================
 # numpy array conversion to variable and numpy complex conversion to 2 channel torch tensor
 # ======================================================================================================================
+
+
+# create xyz point for ncp sim
+
+def create_NCP_xyz_grid_vec(zgrid, ygrid, xgrid):
+
+        new_xgrid = np.array([])
+        new_ygrid = np.array([])
+        new_zgrid = np.array([])
+
+        r = 10   # radios
+
+        x = np.array([])
+        y = np.array([])
+        z = np.array([])
+
+        for i in range(8):    # sim 1 ncp of 8 proteins
+
+
+            x = np.concatenate((x, np.array([r * math.cos(i *math.pi / 4)])))
+            y = np.concatenate((y, np.array([r*math.sin(i*math.pi / 4)])))
+            z = np.concatenate((z, np.array([0])))
+
+
+        for i in range(round(len(zgrid)/8)):
+            new_xgrid=np.concatenate((new_xgrid, x+xgrid[i]))
+            new_ygrid=np.concatenate((new_ygrid, y+ygrid[i]))
+           #new_zgrid=np.concatenate((new_zgrid, z+zgrid[i]))
+            new_zgrid = np.concatenate((new_zgrid, z))
+        for i in range(2):
+
+            new_xgrid = np.concatenate((new_xgrid, np.array([x[i]])))
+            new_ygrid = np.concatenate((new_ygrid, np.array([y[i]])))
+            new_zgrid = np.concatenate((new_zgrid, np.array([z[i]])))
+
+
+        return new_xgrid, new_ygrid, new_zgrid
+
+
 
 
 # function converts numpy array on CPU to torch Variable on GPU
@@ -74,6 +113,7 @@ def generate_batch(batch_size, setup_params, seed=None):
     H, W, clear_dist = int(H * upsampling_factor), int(W * upsampling_factor), int(clear_dist * upsampling_factor)
 
     # for each sample in the batch generate unique grid positions
+
     xyz_grid = np.zeros((batch_size, num_particles, 3)).astype('int')
     for k in range(batch_size):
         
@@ -84,6 +124,13 @@ def generate_batch(batch_size, setup_params, seed=None):
         # switch from linear indices to subscripts
         zgrid_vec, ygrid_vec, xgrid_vec = np.unravel_index(lin_ind, (
         D, H - 2 * clear_dist, W - 2 * clear_dist))
+
+        # change zgrid_vec, ygrid_vec, xgrid_vec   to NCP sim
+        xgrid_vec, ygrid_vec, zgrid_vec = create_NCP_xyz_grid_vec(zgrid_vec, ygrid_vec, xgrid_vec)
+
+        print(lin_ind)
+        print(clear_dist)
+        print(xgrid_vec)
 
         # reshape subscripts to fit into the 3D on grid array
         xyz_grid[k, :, 0] = np.reshape(xgrid_vec, (1, num_particles), 'F') + clear_dist
@@ -287,6 +334,7 @@ def sort_names_tif(img_names):
     for i in img_names:
         i2 = i .split(".tif")
         i3 = i2[0].split("/")
+
         nums.append(int(i3[-1]))
     indices = np.argsort(np.array(nums))
     fixed_names = [img_names[i] for i in indices]
